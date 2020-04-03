@@ -1,19 +1,21 @@
 package com.training.co.springboot.backend.apirest.controller;
 
+
 import com.training.co.springboot.backend.apirest.models.entity.Cliente;
 import com.training.co.springboot.backend.apirest.models.service.IClienteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.xml.crypto.Data;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = {"http://localhost:4200"})
 @RestController
@@ -56,8 +58,26 @@ public class ClienteRestController {
     }
 
     @PostMapping(path = "/clientes")
-    public ResponseEntity<?> create(@Valid @RequestBody Cliente cliente) {
+    public ResponseEntity<?> create(@Valid @RequestBody Cliente cliente, BindingResult result) {
         Map<String, Object> response = new HashMap<>();
+
+        if (result.hasErrors()) {
+            /*Forma JDK 8 con stream y lambda*/
+            List<String> errors = result.getFieldErrors().stream().map(
+                    err -> "El campo <" + err.getField() + "> " + err.getDefaultMessage()
+                    ).collect(Collectors.toList());
+
+
+            /*forma JDk 7
+            List<String> errors = new ArrayList<>();
+            for (FieldError err : result.getFieldErrors()) {
+                errors.add("El campo <" + err.getField() + "> " + err.getDefaultMessage());
+            }*/
+
+            response.put("errors", errors);
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+
         Cliente clienteNew = null;
         try {
             clienteNew = clienteService.save(cliente);
@@ -73,10 +93,20 @@ public class ClienteRestController {
     }
 
     @PutMapping(path = "/clientes/{id}")
-    public ResponseEntity<?> update(@RequestBody Cliente cliente, @PathVariable(value = "id") Long id) {
+    public ResponseEntity<?> update(@Valid @RequestBody Cliente cliente, BindingResult result, @PathVariable(value = "id") Long id) {
         Map<String, Object> response = new HashMap<>();
         Cliente clienteActual = clienteService.findById(id);
         Cliente clienteUpdated = null;
+
+        if (result.hasErrors()) {
+
+            List<String> errors = result.getFieldErrors().stream().map(
+                    err -> "El campo <" + err.getField() + "> " + err.getDefaultMessage()
+            ).collect(Collectors.toList());
+
+            response.put("errors", errors);
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
 
         if (clienteActual == null) {
             response.put("mensaje", "Error, no se puede editar, el cliente ID: " + id.toString() + " no existe en la Base de datos");
